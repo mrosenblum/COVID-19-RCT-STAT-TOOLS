@@ -1,0 +1,7 @@
+source('~/covid/r/code.r')
+task_id = Sys.getenv("SLURM_ARRAY_TASK_ID")
+## sink(file = paste('log', task_id, '.txt', sep=''))
+try(assign(paste('r', task_id, sep = ''), try(funslave(as.numeric(task_id)))))
+## sink()
+save.image(paste('~/covid/out/out', task_id, '.rda', sep = ''))
+quit('no')
