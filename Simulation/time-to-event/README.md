@@ -20,5 +20,5 @@ can be used to compile the results and produce the LaTeX tables in the paper.
 
 # Questions
 
-Please reach out to Iván Díaz by [email](ild2005@med.cornell.edu) if you have any questions about the `survtmlerct` packake or the 
+Please reach out to Iván Díaz by [email](ild2005@med.cornell.edu) if you have any questions about the `survtmlerct` package or the 
 simulation. 
