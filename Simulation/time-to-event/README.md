@@ -8,8 +8,8 @@ The `survtmlerct` package can be installed from GitHub.
 
 # Overview 
 
-The code for this simulation were run on a 
-Linux system with a Slurm Workload Manager. The simulation can be replicated by running the shell script simula.sh. 
+The code for this simulation was run on a 
+Linux system with a Slurm Workload Manager. The simulation can be replicated by running the shell script simula.sh available in each folder for the risk difference (prob) or for the restricted mean survival time (rmst). 
 Some of the options for batching the jobs are native to the host system 
 they were executed on and thus will error if executed on other 
 systems. The basic idea is that the bash script requests an array task and submits a job
