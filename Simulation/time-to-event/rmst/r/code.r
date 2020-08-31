@@ -8,7 +8,6 @@ load('dat.rds')
 source('utils.r')
 
 tau <- 14
-eff <- 4
 
 sim <- function(i) {
 
@@ -57,7 +56,7 @@ sim <- function(i) {
 set.seed(6235)
 rep <- 10000
 seeds <- sample(928397, rep)
-tasks <- expand.grid(n = c(100, 200, 500, 1000), seed = seeds, eff = c(0, eff))
+tasks <- expand.grid(n = c(100, 200, 500, 1000), seed = seeds, eff = c(0, 2, 4))
 
 funslave <- function(j){
     index <- (1:nrow(tasks))[(0:(nrow(tasks)-1)) %/% (nrow(tasks) / 500) + 1 == j]
