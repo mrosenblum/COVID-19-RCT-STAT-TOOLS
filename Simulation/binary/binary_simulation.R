@@ -1,14 +1,10 @@
 #! /usr/bin/env Rscript
 
 # get environment variables
-MYSCRATCH <- Sys.getenv('MYSCRATCH')
-RESULTDIR <- Sys.getenv('RESULTDIR')
 STEPSIZE <- as.numeric(Sys.getenv('STEPSIZE'))
 TASKID <- as.numeric(Sys.getenv('SLURM_ARRAY_TASK_ID'))
 
 # set defaults if nothing comes from environment variables
-MYSCRATCH[is.na(MYSCRATCH)] <- '.'
-RESULTDIR[is.na(RESULTDIR)] <- '.'
 STEPSIZE[is.na(STEPSIZE)] <- 1
 TASKID[is.na(TASKID)] <- 0
 
@@ -26,7 +22,7 @@ save_dir <- "~/"
 # parameters
 ns <- c(100, 200, 500, 1000)
 seed <- 1:1000
-trt_effect <- c(0, 1)
+trt_effect <- c(0, 0.5, 1)
 dgp <- c(1, 3)
 parm <- expand.grid(n = ns, seed = seed, 
                     trt_effect = trt_effect,
@@ -37,10 +33,8 @@ library(drord)
 
 # function to make data to match hospitalizedControlArmDistributionsByAgeGroup
 make_data_1 <- function(n, tx_effect = 0){
-  # cut points of std normal to get cov dist.
-  norm_cuts <- c(-Inf, -2.31, -1.30, -0.77, -0.39, 0.06, 0.66, Inf)
-  norm_var <- rnorm(n)
-  age_grp <- as.numeric(cut(norm_var, norm_cuts, include.lowest = TRUE))
+  unif_var <- runif(n)
+  age_grp <- as.numeric(cut(unif_var, c(0, 0.003848326, 0.192681847, 0.354730472, 0.520380178, 0.745410702, 0.888355056, 1), include.lowest = TRUE))
 
   # treatment
   treat <- rbinom(n, 1, 1/2)
@@ -73,10 +67,8 @@ make_data_1 <- function(n, tx_effect = 0){
 }
 
 get_truth_1 <- function(n = 1e6, tx_effect){
-  # cut points of std normal to get cov dist.
-  norm_cuts <- c(-Inf, -2.31, -1.30, -0.77, -0.39, 0.06, 0.66, Inf)
-  norm_var <- rnorm(n)
-  age_grp <- as.numeric(cut(norm_var, norm_cuts, include.lowest = TRUE))
+  unif_var <- runif(n)
+  age_grp <- as.numeric(cut(unif_var, c(0, 0.003848326, 0.192681847, 0.354730472, 0.520380178, 0.745410702, 0.888355056, 1), include.lowest = TRUE))
 
   # treatment
   treat <- rbinom(n, 1, 1/2)
@@ -111,30 +103,7 @@ get_truth_1 <- function(n = 1e6, tx_effect){
   return(list(mann_whitney = mannwhitney_truth))
 }
 
-
-# get_power_ttest1 <- function(n, tx_effect, B){
-#   do_one_ttest <- function(n, tx_effect){
-#     dat <- make_data_1(n = n, tx_effect = tx_effect)
-#     ttest <- t.test(x = as.numeric(dat$out[dat$treat == 1] %in% c(1,2)), 
-#                     y = as.numeric(dat$out[dat$treat == 0] %in% c(1,2)))
-#     return(ttest$p.value <= 0.05)
-#   }
-#   many_ttests <- replicate(B, do_one_ttest(n = n, tx_effect = tx_effect))
-#   pow <- mean(many_ttests)
-#   return(pow)
-# }
-
-# # calibrate
-# effect_seq <- seq(-1.5, -2, length = 25)
-# ttest_rslt <- sapply(c(100), function(n){
-#   sapply(effect_seq, function(tx_eff, n){
-#     get_power_ttest1(n = n, tx_effect = tx_eff, B = 500)
-#   }, n = n)
-# })
-
-
-
-# function to make data to match hospitalizedControlArmDistributionsByAgeGroup
+# function to make data for non-hospitalized
 make_data_3 <- function(n, tx_effect = 0){
   # cut points of std normal to get cov dist.
   norm_cuts <- c(-Inf, -1.64267998, -0.41766186 , 0.03327091, 0.49144538, 1.06010333, 1.56493129, Inf)
@@ -212,7 +181,7 @@ get_truth_3 <- function(n = 1e6, tx_effect = 0){
   mean_y0 <- sum(c(1,1,0)*f_0)
   wmean_truth <- mean_y1 - mean_y0
   
-  return(list(mann_whitney = mannwhitney_truth))
+  return(list(weighted_mean = wmean_truth))
 }
 
 # get the list size #########
@@ -222,7 +191,6 @@ if (args[1] == 'listsize') {
 
 # execute prepare job ##################
 if (args[1] == 'prepare') {
-  print(paste0('initial datasets saved to: ~/drinf/scratch/dataList ... .RData'))
 }
 
 # execute parallel job #################################################
@@ -241,16 +209,27 @@ if (args[1] == 'run') {
     set.seed(parm$seed[i])
 
     if(parm$dgp[i] == 1){
-      # make data set
-      get_tx_eff <- function(n){
-        if(n == 100){
-          return(-1.83)
-        }else if(n == 200){
-          return(-1.13)
-        }else if(n == 500){
-          return(-0.625)
-        }else{
-          return(-0.438)
+    get_tx_eff <- function(n, trt_effect){
+        if(trt_effect == 1){
+          if(n == 100){
+            return(-1.25)
+          }else if(n == 200){
+            return(-1.25)
+          }else if(n == 500){
+            return(-0.68)
+          }else{
+            return(-0.47)
+          }
+        }else if(trt_effect == 0.5){
+          if(n == 100){
+            return(-0.92)
+          }else if(n == 200){
+            return(-0.82)
+          }else if(n == 500){
+            return(-0.48)
+          }else{
+            return(-0.29)
+          }
         }
       }
 
@@ -266,15 +245,28 @@ if (args[1] == 'run') {
       truth <- get_truth_1(n = 1e6, tx_effect = tx_eff)
     }else{
       # make data set
-      get_tx_eff <- function(n){
-        if(n == 100){
-          return(-1.85)
-        }else if(n == 200){
-          return(-1.18)
-        }else if(n == 500){
-          return(-0.725)
-        }else{
-          return(-0.443)
+      get_tx_eff <- function(n, trt_effect){
+        if(trt_effect == 1){
+          if(n == 100){
+            return(-1.85)
+          }else if(n == 200){
+            return(-1.18)
+          }else if(n == 500){
+            return(-0.725)
+          }else{
+            return(-0.443)
+          }
+        }else if(trt_effect == 0.5){
+          # -0.9155172 -0.5921053 -0.4263158 -0.2775862
+          if(n == 100){
+            return(-0.92)
+          }else if(n == 200){
+            return(-0.59)
+          }else if(n == 500){
+            return(-0.43)
+          }else{
+            return(-0.28)
+          }
         }
       }
 
@@ -307,7 +299,7 @@ if (args[1] == 'run') {
       est_dist = FALSE
     )
 
-    # get output for unadjusted mw and weighted-mean
+    # get output for chi square test
     unadj_0 <- mean(out_bin[dat$treat == 0])
     unadj_1 <- mean(out_bin[dat$treat == 1])
     pval <- chisq.test(table(out_bin, dat$treat))$p.value
@@ -331,7 +323,7 @@ if (args[1] == 'run') {
              c(unadj_1 - unadj_0, pval))
 
     # save output
-    save(out, file = paste0(save_dir, "fit_", row.names(parm)[i], ".RData"))
+    save(out, file = paste0(save_dir, "fit_binary_", row.names(parm)[i], ".RData"))
   }
 }
 
@@ -351,7 +343,7 @@ if (args[1] == 'merge'){
   rslt <- matrix(NA, nrow = nrow(parm), ncol = n_out)
   for(i in 1:nrow(parm)){
     tmp <- tryCatch({
-      load(paste0(save_dir, "final_fit_binary_", i, ".RData"))
+      load(paste0(save_dir, "fit_binary_", i, ".RData"))
       out
     }, error = function(e){
       rep(NA, n_out)
@@ -362,45 +354,70 @@ if (args[1] == 'merge'){
   out <- data.frame(rslt)
   colnames(out) <- out_names
 
-  make_output_table <- function(out, estimand = "wmean", ci){
+  make_output_table <- function(out, estimand = "wmean", ci, scale = TRUE){
     null_val <- 0
     
-    sample_size <- sort(rep(c(100, 200, 500, 1000), 4))
-    est_type <- rep(c("Unadjusted", "Adjusted"), 8)
+    sample_size <- sort(rep(c(100, 200, 500, 1000), 6))
+    est_type <- rep(c("Unadjusted", "Adjusted"), 12)
 
     effect_col <- unlist(by(out, out$n, function(x){
       c(rep(x[x$trt_effect == 0, paste0(estimand, "_truth")][1],2),
+        rep(x[x$trt_effect == 0.5, paste0(estimand, "_truth")][1],2),
         rep(x[x$trt_effect == 1, paste0(estimand, "_truth")][1],2))
     }), use.names = FALSE)
 
-    power_col <- unlist(by(out, out$n, function(x){
+    power_col <- unlist(by(out, out$n, function(x){      
       c(mean(na.rm = TRUE, as.numeric(x$wmean_unadj_pval[x$trt_effect == 0] < 0.05)),
         mean(na.rm = TRUE, as.numeric(x[x$trt_effect == 0, paste0(estimand, "_adj_", ci, "_cil")] > null_val |
                                       x[x$trt_effect == 0, paste0(estimand, "_adj_", ci, "_ciu")] < null_val)),
+        mean(na.rm = TRUE, as.numeric(x$wmean_unadj_pval[x$trt_effect == 0.5] < 0.05)),
+        mean(na.rm = TRUE, as.numeric(x[x$trt_effect == 0.5, paste0(estimand, "_adj_", ci, "_cil")] > null_val |
+                                      x[x$trt_effect == 0.5, paste0(estimand, "_adj_", ci, "_ciu")] < null_val)),
         mean(na.rm = TRUE, as.numeric(x$wmean_unadj_pval[x$trt_effect == 1] < 0.05)),
         mean(na.rm = TRUE, as.numeric(x[x$trt_effect == 1, paste0(estimand, "_adj_", ci, "_cil")] > null_val |
-                                      x[x$trt_effect == 1, paste0(estimand, "_adj_", ci, "_ciu")] < null_val)))    
-      }), use.names = FALSE)
+                                      x[x$trt_effect == 1, paste0(estimand, "_adj_", ci, "_ciu")] < null_val)))
+    }), use.names = FALSE)
 
     mse_col <- unlist(by(out, out$n, function(x){
-      c(mean(na.rm = TRUE, (x[x$trt_effect == 0, paste0(estimand, "_unadj_est")] - x[x$trt_effect == 0, paste0(estimand, "_truth")])^2),
-        mean(na.rm = TRUE, (x[x$trt_effect == 0, paste0(estimand, "_adj_est")] - x[x$trt_effect == 0, paste0(estimand, "_truth")])^2),
-        mean(na.rm = TRUE, (x[x$trt_effect == 1, paste0(estimand, "_unadj_est")] - x[x$trt_effect == 1, paste0(estimand, "_truth")])^2),
-        mean(na.rm = TRUE, (x[x$trt_effect == 1, paste0(estimand, "_adj_est")] - x[x$trt_effect == 1, paste0(estimand, "_truth")])^2))
+      if(scale){
+        scale_factor <- x$n[1]
+      }else{
+        scale_factor <- 1
+      }
+      c(scale_factor * mean(na.rm = TRUE, (x[x$trt_effect == 0, paste0(estimand, "_unadj_est")] - x[x$trt_effect == 0, paste0(estimand, "_truth")])^2),
+        scale_factor * mean(na.rm = TRUE, (x[x$trt_effect == 0, paste0(estimand, "_adj_est")] - x[x$trt_effect == 0, paste0(estimand, "_truth")])^2),
+        scale_factor * mean(na.rm = TRUE, (x[x$trt_effect == 0.5, paste0(estimand, "_unadj_est")] - x[x$trt_effect == 0.5, paste0(estimand, "_truth")])^2),
+        scale_factor * mean(na.rm = TRUE, (x[x$trt_effect == 0.5, paste0(estimand, "_adj_est")] - x[x$trt_effect == 0.5, paste0(estimand, "_truth")])^2),
+        scale_factor * mean(na.rm = TRUE, (x[x$trt_effect == 1, paste0(estimand, "_unadj_est")] - x[x$trt_effect == 1, paste0(estimand, "_truth")])^2),
+        scale_factor * mean(na.rm = TRUE, (x[x$trt_effect == 1, paste0(estimand, "_adj_est")] - x[x$trt_effect == 1, paste0(estimand, "_truth")])^2))
     }), use.names = FALSE)
 
     bias_col <- unlist(by(out, out$n, function(x){
-      c(mean(na.rm = TRUE, (x[x$trt_effect == 0, paste0(estimand, "_unadj_est")] - x[x$trt_effect == 0, paste0(estimand, "_truth")])),
-        mean(na.rm = TRUE, (x[x$trt_effect == 0, paste0(estimand, "_adj_est")] - x[x$trt_effect == 0, paste0(estimand, "_truth")])),
-        mean(na.rm = TRUE, (x[x$trt_effect == 1, paste0(estimand, "_unadj_est")] - x[x$trt_effect == 1, paste0(estimand, "_truth")])),
-        mean(na.rm = TRUE, (x[x$trt_effect == 1, paste0(estimand, "_adj_est")] - x[x$trt_effect == 1, paste0(estimand, "_truth")])))
+      if(scale){
+        scale_factor <- sqrt(x$n[1])
+      }else{
+        scale_factor <- 1
+      }
+      c(scale_factor * mean(na.rm = TRUE, (x[x$trt_effect == 0, paste0(estimand, "_unadj_est")] - x[x$trt_effect == 0, paste0(estimand, "_truth")])),
+        scale_factor * mean(na.rm = TRUE, (x[x$trt_effect == 0, paste0(estimand, "_adj_est")] - x[x$trt_effect == 0, paste0(estimand, "_truth")])),
+        scale_factor * mean(na.rm = TRUE, (x[x$trt_effect == 0.5, paste0(estimand, "_unadj_est")] - x[x$trt_effect == 0.5, paste0(estimand, "_truth")])),
+        scale_factor * mean(na.rm = TRUE, (x[x$trt_effect == 0.5, paste0(estimand, "_adj_est")] - x[x$trt_effect == 0.5, paste0(estimand, "_truth")])),
+        scale_factor * mean(na.rm = TRUE, (x[x$trt_effect == 1, paste0(estimand, "_unadj_est")] - x[x$trt_effect == 1, paste0(estimand, "_truth")])),
+        scale_factor * mean(na.rm = TRUE, (x[x$trt_effect == 1, paste0(estimand, "_adj_est")] - x[x$trt_effect == 1, paste0(estimand, "_truth")])))
     }), use.names = FALSE)
     
     var_col <- unlist(by(out, out$n, function(x){
-      c(var(na.rm = TRUE, x[x$trt_effect == 0, paste0(estimand, "_unadj_est")]),
-        var(na.rm = TRUE, x[x$trt_effect == 0, paste0(estimand, "_adj_est")]),
-        var(na.rm = TRUE, x[x$trt_effect == 1, paste0(estimand, "_unadj_est")]),
-        var(na.rm = TRUE, x[x$trt_effect == 1, paste0(estimand, "_adj_est")]))
+      if(scale){
+        scale_factor <- x$n[1]
+      }else{
+        scale_factor <- 1
+      }
+      c(scale_factor * var(na.rm = TRUE, x[x$trt_effect == 0, paste0(estimand, "_unadj_est")]),
+        scale_factor * var(na.rm = TRUE, x[x$trt_effect == 0, paste0(estimand, "_adj_est")]),
+        scale_factor * var(na.rm = TRUE, x[x$trt_effect == 0.5, paste0(estimand, "_unadj_est")]),
+        scale_factor * var(na.rm = TRUE, x[x$trt_effect == 0.5, paste0(estimand, "_adj_est")]),
+        scale_factor * var(na.rm = TRUE, x[x$trt_effect == 1, paste0(estimand, "_unadj_est")]),
+        scale_factor * var(na.rm = TRUE, x[x$trt_effect == 1, paste0(estimand, "_adj_est")]))
     }), use.names = FALSE)
     rel_eff <- rep(NA, length(mse_col))
     rel_eff[seq(1, length(mse_col), by = 2)] <- 1

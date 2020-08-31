@@ -1,4 +1,4 @@
-#! /usr/bin/env/Rscript
+#! /usr/bin/env Rscript
 
 # get environment variables
 STEPSIZE <- as.numeric(Sys.getenv('STEPSIZE'))
@@ -22,7 +22,7 @@ save_dir <- "~/"
 # parameters
 ns <- c(100, 200, 500, 1000)
 seed <- 1:1000
-trt_effect <- c(0, 1)
+trt_effect <- c(0, 0.5, 1)
 dgp <- c(1, 3)
 parm <- expand.grid(n = ns, seed = seed, 
                     trt_effect = trt_effect,
@@ -33,10 +33,8 @@ library(drord)
 
 # function to make data for hospitalized COVID-19 patients
 make_data_1 <- function(n, tx_effect = 0){
-  # cut points of std normal to get cov dist.
-  norm_cuts <- c(-Inf, -2.31, -1.30, -0.77, -0.39, 0.06, 0.66, Inf)
-  norm_var <- rnorm(n)
-  age_grp <- as.numeric(cut(norm_var, norm_cuts, include.lowest = TRUE))
+  unif_var <- runif(n)
+  age_grp <- as.numeric(cut(unif_var, c(0, 0.003848326, 0.192681847, 0.354730472, 0.520380178, 0.745410702, 0.888355056, 1), include.lowest = TRUE))
 
   # treatment
   treat <- rbinom(n, 1, 1/2)
@@ -68,10 +66,8 @@ make_data_1 <- function(n, tx_effect = 0){
 }
 
 get_truth_1 <- function(n = 1e6, tx_effect){
-  # cut points of std normal to get cov dist.
-  norm_cuts <- c(-Inf, -2.31, -1.30, -0.77, -0.39, 0.06, 0.66, Inf)
-  norm_var <- rnorm(n)
-  age_grp <- as.numeric(cut(norm_var, norm_cuts, include.lowest = TRUE))
+  unif_var <- runif(n)
+  age_grp <- as.numeric(cut(unif_var, c(0, 0.003848326, 0.192681847, 0.354730472, 0.520380178, 0.745410702, 0.888355056, 1), include.lowest = TRUE))
 
   # treatment
   treat <- rbinom(n, 1, 1/2)
@@ -214,7 +210,7 @@ if (args[1] == 'listsize') {
 
 # execute prepare job ##################
 if (args[1] == 'prepare') {
-  print(paste0('initial datasets saved to: ~/drinf/scratch/dataList ... .RData'))
+  print('Nothing to prepare')
 }
 
 # execute parallel job #################################################
@@ -233,16 +229,27 @@ if (args[1] == 'run') {
     set.seed(parm$seed[i])
 
     if(parm$dgp[i] == 1){
-      # make data set
-      get_tx_eff <- function(n){
-        if(n == 100){
-          return(-2.4)
-        }else if(n == 200){
-          return(-2.4)
-        }else if(n == 500){
-          return(-1.1)
-        }else{
-          return(-0.7)
+      get_tx_eff <- function(n, trt_effect = 1){
+        if(trt_effect == 1){
+          if(n == 100){
+            return(-1.73)
+          }else if(n == 200){            
+            return(-1.84)
+          }else if(n == 500){            
+            return(-1.0)
+          }else{            
+            return(-0.68)
+          }
+        }else if(trt_effect == 0.5){
+          if(n == 100){            
+            return(-1.15)
+          }else if(n == 200){            
+            return(-1.20)
+          }else if(n == 500){            
+            return(-0.68)
+          }else{            
+            return(-0.46)
+          }
         }
       }
 
@@ -257,16 +264,27 @@ if (args[1] == 'run') {
       set.seed(1234)
       truth <- get_truth_1(n = 1e6, tx_effect = tx_eff)
     }else{
-      # make data set
-      get_tx_eff <- function(n){
-        if(n == 100){
-          return(-1.58)
-        }else if(n == 200){
-          return(-1.58)
-        }else if(n == 500){
-          return(-0.83)
-        }else{
-          return(-0.57)
+      get_tx_eff <- function(n, trt_effect){
+        if(trt_effect == 1){
+          if(n == 100){
+            return(-1.58)
+          }else if(n == 200){
+            return(-1.58)
+          }else if(n == 500){
+            return(-0.83)
+          }else{
+            return(-0.57)
+          }
+        }else if(trt_effect == 0.5){
+          if(n == 100){
+            return(-1.17)
+          }else if(n == 200){
+            return(-0.82)
+          }else if(n == 500){
+            return(-0.47)
+          }else{
+            return(-0.36)
+          }
         }
       }
 
@@ -280,7 +298,6 @@ if (args[1] == 'run') {
       # get truth
       set.seed(1234)
       truth <- get_truth_3(n = 1e6, tx_effect = tx_eff)
-
     }
 
     # get output for adjusted estimators
@@ -375,7 +392,7 @@ if (args[1] == 'merge'){
   out <- data.frame(rslt)
   colnames(out) <- out_names
  
-  make_output_table <- function(out, estimand, ci){
+  make_output_table <- function(out, estimand, ci, scale = TRUE){
     null_val <- if(estimand == "mannwhitney"){
       0.5
     }else if(estimand == "logodds"){
@@ -390,11 +407,12 @@ if (args[1] == 'merge'){
     out$logodds_adj_est[out$logodds_adj_est == Inf] <- NA
     out$logodds_adj_est[out$logodds_adj_est == NaN] <- NA
 
-    sample_size <- sort(rep(c(100, 200, 500, 1000), 4))
-    est_type <- rep(c("Unadjusted", "Adjusted"), 8)
+    sample_size <- sort(rep(c(100, 200, 500, 1000), 6))
+    est_type <- rep(c("Unadjusted", "Adjusted"), 12)
 
     effect_col <- unlist(by(out, out$n, function(x){
       c(rep(x[x$trt_effect == 0, paste0(estimand, "_truth")][1],2),
+        rep(x[x$trt_effect == 0.5, paste0(estimand, "_truth")][1],2),
         rep(x[x$trt_effect == 1, paste0(estimand, "_truth")][1],2))
     }), use.names = FALSE)
 
@@ -403,6 +421,10 @@ if (args[1] == 'merge'){
                                       x[x$trt_effect == 0, paste0(estimand, "_unadj_", ci, "_ciu")] < null_val)),
         mean(na.rm = TRUE, as.numeric(x[x$trt_effect == 0, paste0(estimand, "_adj_", ci, "_cil")] > null_val |
                                       x[x$trt_effect == 0, paste0(estimand, "_adj_", ci, "_ciu")] < null_val)),
+        mean(na.rm = TRUE, as.numeric(x[x$trt_effect == 0.5, paste0(estimand, "_unadj_", ci, "_cil")] > null_val |
+                                      x[x$trt_effect == 0.5, paste0(estimand, "_unadj_", ci, "_ciu")] < null_val)),
+        mean(na.rm = TRUE, as.numeric(x[x$trt_effect == 0.5, paste0(estimand, "_adj_", ci, "_cil")] > null_val |
+                                      x[x$trt_effect == 0.5, paste0(estimand, "_adj_", ci, "_ciu")] < null_val)),
         mean(na.rm = TRUE, as.numeric(x[x$trt_effect == 1, paste0(estimand, "_unadj_", ci, "_cil")] > null_val |
                                       x[x$trt_effect == 1, paste0(estimand, "_unadj_", ci, "_ciu")] < null_val)),
         mean(na.rm = TRUE, as.numeric(x[x$trt_effect == 1, paste0(estimand, "_adj_", ci, "_cil")] > null_val |
@@ -410,24 +432,45 @@ if (args[1] == 'merge'){
       }), use.names = FALSE)
 
     mse_col <- unlist(by(out, out$n, function(x){
-      c(mean(na.rm = TRUE, (x[x$trt_effect == 0, paste0(estimand, "_unadj_est")] - x[x$trt_effect == 0, paste0(estimand, "_truth")])^2),
-        mean(na.rm = TRUE, (x[x$trt_effect == 0, paste0(estimand, "_adj_est")] - x[x$trt_effect == 0, paste0(estimand, "_truth")])^2),
-        mean(na.rm = TRUE, (x[x$trt_effect == 1, paste0(estimand, "_unadj_est")] - x[x$trt_effect == 1, paste0(estimand, "_truth")])^2),
-        mean(na.rm = TRUE, (x[x$trt_effect == 1, paste0(estimand, "_adj_est")] - x[x$trt_effect == 1, paste0(estimand, "_truth")])^2))
+      if(scale){
+        scale_factor <- x$n[1]
+      }else{
+        scale_factor <- 1
+      }
+      c(scale_factor*mean(na.rm = TRUE, (x[x$trt_effect == 0, paste0(estimand, "_unadj_est")] - x[x$trt_effect == 0, paste0(estimand, "_truth")])^2),
+        scale_factor*mean(na.rm = TRUE, (x[x$trt_effect == 0, paste0(estimand, "_adj_est")] - x[x$trt_effect == 0, paste0(estimand, "_truth")])^2),
+        scale_factor*mean(na.rm = TRUE, (x[x$trt_effect == 0.5, paste0(estimand, "_unadj_est")] - x[x$trt_effect == 0.5, paste0(estimand, "_truth")])^2),
+        scale_factor*mean(na.rm = TRUE, (x[x$trt_effect == 0.5, paste0(estimand, "_adj_est")] - x[x$trt_effect == 0.5, paste0(estimand, "_truth")])^2),
+        scale_factor*mean(na.rm = TRUE, (x[x$trt_effect == 1, paste0(estimand, "_unadj_est")] - x[x$trt_effect == 1, paste0(estimand, "_truth")])^2),
+        scale_factor*mean(na.rm = TRUE, (x[x$trt_effect == 1, paste0(estimand, "_adj_est")] - x[x$trt_effect == 1, paste0(estimand, "_truth")])^2))
     }), use.names = FALSE)
 
     bias_col <- unlist(by(out, out$n, function(x){
-      c(mean(na.rm = TRUE, (x[x$trt_effect == 0, paste0(estimand, "_unadj_est")] - x[x$trt_effect == 0, paste0(estimand, "_truth")])),
-        mean(na.rm = TRUE, (x[x$trt_effect == 0, paste0(estimand, "_adj_est")] - x[x$trt_effect == 0, paste0(estimand, "_truth")])),
-        mean(na.rm = TRUE, (x[x$trt_effect == 1, paste0(estimand, "_unadj_est")] - x[x$trt_effect == 1, paste0(estimand, "_truth")])),
-        mean(na.rm = TRUE, (x[x$trt_effect == 1, paste0(estimand, "_adj_est")] - x[x$trt_effect == 1, paste0(estimand, "_truth")])))
+      if(scale){
+        scale_factor <- sqrt(x$n[1])
+      }else{
+        scale_factor <- 1
+      }
+      c(scale_factor*mean(na.rm = TRUE, (x[x$trt_effect == 0, paste0(estimand, "_unadj_est")] - x[x$trt_effect == 0, paste0(estimand, "_truth")])),
+        scale_factor*mean(na.rm = TRUE, (x[x$trt_effect == 0, paste0(estimand, "_adj_est")] - x[x$trt_effect == 0, paste0(estimand, "_truth")])),
+        scale_factor*mean(na.rm = TRUE, (x[x$trt_effect == 0.5, paste0(estimand, "_unadj_est")] - x[x$trt_effect == 0.5, paste0(estimand, "_truth")])),
+        scale_factor*mean(na.rm = TRUE, (x[x$trt_effect == 0.5, paste0(estimand, "_adj_est")] - x[x$trt_effect == 0.5, paste0(estimand, "_truth")])),
+        scale_factor*mean(na.rm = TRUE, (x[x$trt_effect == 1, paste0(estimand, "_unadj_est")] - x[x$trt_effect == 1, paste0(estimand, "_truth")])),
+        scale_factor*mean(na.rm = TRUE, (x[x$trt_effect == 1, paste0(estimand, "_adj_est")] - x[x$trt_effect == 1, paste0(estimand, "_truth")])))
     }), use.names = FALSE)
     
     var_col <- unlist(by(out, out$n, function(x){
-      c(var(na.rm = TRUE, x[x$trt_effect == 0, paste0(estimand, "_unadj_est")]),
-        var(na.rm = TRUE, x[x$trt_effect == 0, paste0(estimand, "_adj_est")]),
-        var(na.rm = TRUE, x[x$trt_effect == 1, paste0(estimand, "_unadj_est")]),
-        var(na.rm = TRUE, x[x$trt_effect == 1, paste0(estimand, "_adj_est")]))
+      if(scale){
+        scale_factor <- x$n[1]
+      }else{
+        scale_factor <- 1
+      }
+      c(scale_factor * var(na.rm = TRUE, x[x$trt_effect == 0, paste0(estimand, "_unadj_est")]),
+        scale_factor * var(na.rm = TRUE, x[x$trt_effect == 0, paste0(estimand, "_adj_est")]),
+        scale_factor * var(na.rm = TRUE, x[x$trt_effect == 0.5, paste0(estimand, "_unadj_est")]),
+        scale_factor * var(na.rm = TRUE, x[x$trt_effect == 0.5, paste0(estimand, "_adj_est")]),
+        scale_factor * var(na.rm = TRUE, x[x$trt_effect == 1, paste0(estimand, "_unadj_est")]),
+        scale_factor * var(na.rm = TRUE, x[x$trt_effect == 1, paste0(estimand, "_adj_est")]))
     }), use.names = FALSE)
     rel_eff <- rep(NA, length(mse_col))
     rel_eff[seq(1, length(mse_col), by = 2)] <- 1
@@ -437,7 +480,6 @@ if (args[1] == 'merge'){
 
     return(tab)
   }
-
 
   library(xtable)
   # hospitalized
@@ -501,4 +543,4 @@ if (args[1] == 'merge'){
   print(xtable(tab_list_3[[1]], digits = c(0,0,rep(3,7))), 
         include.rownames = FALSE,
         hline.after = c(4, 8, 12))
- }
+}

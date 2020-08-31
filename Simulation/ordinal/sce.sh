@@ -39,7 +39,6 @@ if [[ -z $RETRYFAILED ]]; then
     echo "  submitting ${SCRIPT} prepare in ${MYSCRATCH}..." 
     sbatch --dependency=singleton --job-name=${ANALYSIS} \
            --partition=${PARTITION} --time=0-3 --requeue \
-           --exclude=gizmoe[1-23] \
            --mail-type=FAIL --mail-user="${username}{MAILDOM}" \
            --output="${MYSCRATCH}/out/${ANALYSIS}.prepare.%J" \
            --wrap="${SCRIPT} prepare 0 $3 $4 $5 $6 $7 $8 $9"
@@ -62,7 +61,6 @@ if [[ -z $RETRYFAILED ]]; then
         echo "    STEPSIZE ${STEPSIZE}, arrid ${arrid} depends on job ${waitforjobs}..."
         sbatch --dependency=afterok:${waitforjobs} --job-name=${ANALYSIS} \
                --array=1-${arrupper}:${STEPSIZE} --partition=${PARTITION} \
-               --exclude=gizmoe[1-23] \
                --mail-type=FAIL --mail-user="${username}${MAILDOM}" --time=0-1 \
                --output="${MYSCRATCH}/out/${ANALYSIS}.run.${arrid}_%a_%A.%J" \
                --wrap="${SCRIPT} run ${arrid} $3 $4 $5 $6 $7 $8 $9" --requeue
@@ -95,7 +93,6 @@ else
             echo "  re-submitting ${SCRIPT} run ${id}"
             sbatch --dependency=singleton --job-name=${ANALYSIS} \
                    --partition=${PARTITION} --requeue --time=0-2 \
-                   --exclude=gizmoe[1-23] \
                    --mail-type=FAIL --mail-user="${username}${MAILDOM}" \
                    --output="${MYSCRATCH}/out/${ANALYSIS}.run2.${i}.%J" \
                    --wrap="${SCRIPT} run ${id} $3 $4 $5 $6 $7 $8 $9"
