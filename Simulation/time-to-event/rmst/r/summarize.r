@@ -27,8 +27,9 @@ out <- out %>% filter(abs(estimate) < 2, se < 10)
 
 load('dat.rds')
 true0 <- true(dat, 0, tau)
-true1 <- true(dat, eff, tau)
-true <- data.frame(eff = c(0, eff), truth = c(true0, true1))
+true1 <- true(dat, 2, tau)
+true2 <- true(dat, 4, tau)
+true <- data.frame(eff = c(0, 2, 4), truth = c(true0, true1, true2))
 save(true, file = 'true.rds')
 
 alpha <- 0.05

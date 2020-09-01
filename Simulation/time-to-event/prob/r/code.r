@@ -10,12 +10,11 @@ load('dat.rds')
 source('utils.r')
 
 tau <- 7
-eff <- 4
 
 set.seed(6235)
 rep <- 10000
 seeds <- sample(928397, rep)
-tasks <- expand.grid(n = c(100, 200, 500, 1000), seed = seeds, eff = c(0, eff))
+tasks <- expand.grid(n = c(100, 200, 500, 1000), seed = seeds, eff = c(0, 2, 4))
 
 sim <- function(i) {
 
