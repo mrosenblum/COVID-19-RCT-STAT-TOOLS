@@ -13,6 +13,7 @@ tau <- 7
 
 set.seed(6235)
 rep <- 10000
+rep <- 1
 seeds <- sample(928397, rep)
 tasks <- expand.grid(n = c(100, 200, 500, 1000), seed = seeds, eff = c(0, 2, 4))
 
@@ -46,8 +47,8 @@ sim <- function(i) {
     unad <- unadjusted_prob(dlong, tau)
 
     return(data.frame(estimator = c('tmle', 'km'),
-                      estimate  = c(diff(tmle$theta), diff(unad$km)),
-                      se        = c(tmle$sdn, unad$sekm),
+                      estimate  = c(diff(tmle$prob), diff(unad$prob)),
+                      se        = c(tmle$std.error.diff, unad$std.error.diff),
                       eff = eff,
                       seed = seed,
                       n = n))

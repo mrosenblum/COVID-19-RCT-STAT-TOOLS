@@ -3,6 +3,7 @@ library(dplyr)
 library(lubridate)
 library(survtmlerct)
 library(glm2)
+setwd("~/repos/COVID-19-RCT-STAT-TOOLS/Simulation/time-to-event/rmst/r")
 
 load('dat.rds')
 source('utils.r')
@@ -20,12 +21,12 @@ sim <- function(i) {
     data <- gendata(dat, n, eff)
     dlong <- transformData(data, 1)
 
-    ## fitL <- glm(Lm ~ A * (m + sex + age + o2 + dyspnea + hyper + bilat),
-    ##             data = dlong, subset = Im == 1, family = binomial())
-    ## fitR <- glm(Rm ~ A * (as.factor(m) + sex + age + o2 + dyspnea + hyper + bilat),
-    ##             data = dlong, subset = Jm == 1, family = binomial())
-    ## fitA <- glm(A ~ sex + age + o2 + dyspnea + hyper + bilat,
-    ##             data = dlong, subset = m == 1, family = binomial())
+    fitL <- glm(Lm ~ A * (m + sex + age + o2 + dyspnea + hyper + bilat),
+                data = dlong, subset = Im == 1, family = binomial())
+    fitR <- glm(Rm ~ A * (as.factor(m) + sex + age + o2 + dyspnea + hyper + bilat),
+                data = dlong, subset = Jm == 1, family = binomial())
+    fitA <- glm(A ~ sex + age + o2 + dyspnea + hyper + bilat,
+                data = dlong, subset = m == 1, family = binomial())
 
     fitL <- glm(Lm ~ A * (m + sex + age),
                 data = dlong, subset = Im == 1, family = binomial())
@@ -42,15 +43,16 @@ sim <- function(i) {
         h0  = bound01(predict(fitL, newdata = mutate(dlong, A = 0), type = 'response')),
         gA1 = bound01(predict(fitA, newdata = mutate(dlong, A = 1), type = 'response')))
 
-    tmle <- tmle(dlong, tau)
-    unad <- unadjusted(dlong, tau)
+    tmle <- tmle_rmst(dlong, tau)
+    unad <- unadjusted_rmst(dlong, tau)
 
     return(data.frame(estimator = c('tmle', 'km'),
-                      estimate  = c(diff(tmle$theta), diff(unad$km)),
-                      se        = c(tmle$sdn, unad$sekm),
+                      estimate  = c(diff(tmle$rmst), diff(unad$rmst)),
+                      se        = c(tmle$std.error.diff, unad$std.error.diff),
                       eff = eff,
                       seed = seed,
                       n = n))
+    return(data)
 }
 
 set.seed(6235)
