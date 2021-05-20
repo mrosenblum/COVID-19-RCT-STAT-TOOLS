@@ -46,8 +46,8 @@ sim <- function(i) {
     unad <- unadjusted_prob(dlong, tau)
 
     return(data.frame(estimator = c('tmle', 'km'),
-                      estimate  = c(diff(tmle$theta), diff(unad$km)),
-                      se        = c(tmle$sdn, unad$sekm),
+                      estimate  = c(diff(tmle$prob), diff(unad$prob)),
+                      se        = c(tmle$std.error.diff, unad$std.error.diff),
                       eff = eff,
                       seed = seed,
                       n = n))

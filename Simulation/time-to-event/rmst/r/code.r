@@ -42,12 +42,12 @@ sim <- function(i) {
         h0  = bound01(predict(fitL, newdata = mutate(dlong, A = 0), type = 'response')),
         gA1 = bound01(predict(fitA, newdata = mutate(dlong, A = 1), type = 'response')))
 
-    tmle <- tmle(dlong, tau)
-    unad <- unadjusted(dlong, tau)
+    tmle <- tmle_rmst(dlong, tau)
+    unad <- unadjusted_rmst(dlong, tau)
 
     return(data.frame(estimator = c('tmle', 'km'),
-                      estimate  = c(diff(tmle$theta), diff(unad$km)),
-                      se        = c(tmle$sdn, unad$sekm),
+                      estimate  = c(diff(tmle$rmst), diff(unad$rmst)),
+                      se        = c(tmle$std.error.diff, unad$std.error.diff),
                       eff = eff,
                       seed = seed,
                       n = n))
