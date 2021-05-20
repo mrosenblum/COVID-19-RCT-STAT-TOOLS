@@ -13,7 +13,6 @@ tau <- 7
 
 set.seed(6235)
 rep <- 10000
-rep <- 1
 seeds <- sample(928397, rep)
 tasks <- expand.grid(n = c(100, 200, 500, 1000), seed = seeds, eff = c(0, 2, 4))
 

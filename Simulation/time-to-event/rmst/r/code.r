@@ -3,7 +3,6 @@ library(dplyr)
 library(lubridate)
 library(survtmlerct)
 library(glm2)
-setwd("~/repos/COVID-19-RCT-STAT-TOOLS/Simulation/time-to-event/rmst/r")
 
 load('dat.rds')
 source('utils.r')
@@ -21,12 +20,12 @@ sim <- function(i) {
     data <- gendata(dat, n, eff)
     dlong <- transformData(data, 1)
 
-    fitL <- glm(Lm ~ A * (m + sex + age + o2 + dyspnea + hyper + bilat),
-                data = dlong, subset = Im == 1, family = binomial())
-    fitR <- glm(Rm ~ A * (as.factor(m) + sex + age + o2 + dyspnea + hyper + bilat),
-                data = dlong, subset = Jm == 1, family = binomial())
-    fitA <- glm(A ~ sex + age + o2 + dyspnea + hyper + bilat,
-                data = dlong, subset = m == 1, family = binomial())
+    ## fitL <- glm(Lm ~ A * (m + sex + age + o2 + dyspnea + hyper + bilat),
+    ##             data = dlong, subset = Im == 1, family = binomial())
+    ## fitR <- glm(Rm ~ A * (as.factor(m) + sex + age + o2 + dyspnea + hyper + bilat),
+    ##             data = dlong, subset = Jm == 1, family = binomial())
+    ## fitA <- glm(A ~ sex + age + o2 + dyspnea + hyper + bilat,
+    ##             data = dlong, subset = m == 1, family = binomial())
 
     fitL <- glm(Lm ~ A * (m + sex + age),
                 data = dlong, subset = Im == 1, family = binomial())
