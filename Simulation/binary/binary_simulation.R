@@ -94,13 +94,16 @@ get_truth_1 <- function(n = 1e6, tx_effect){
 
   prob_nothing1 <- 1 - prob_death - prob_vent1
   prob_nothing0 <- 1 - prob_death - prob_vent0
+  
+  f_0 <- c(mean(prob_death), mean(prob_vent0), mean(prob_nothing0))
+  f_1 <- c(mean(prob_death), mean(prob_vent1), mean(prob_nothing0))
 
   # weighted mean -- modified for binarization
   mean_y1 <- sum(c(1,1,0)*f_1)
   mean_y0 <- sum(c(1,1,0)*f_0)
   wmean_truth <- mean_y1 - mean_y0
   
-  return(list(mann_whitney = mannwhitney_truth))
+  return(list(weighted_mean = wmean_truth))
 }
 
 # function to make data for non-hospitalized
@@ -171,8 +174,6 @@ get_truth_3 <- function(n = 1e6, tx_effect = 0){
   prob_nothing1 <- 1 - prob_death - prob_vent1
   prob_nothing0 <- 1 - prob_death - prob_vent0
   
-  F0 <- c(mean(prob_death), mean(prob_death + prob_vent0), 1)
-  F1 <- c(mean(prob_death), mean(prob_death + prob_vent1), 1)
   f_0 <- c(mean(prob_death), mean(prob_vent0), mean(prob_nothing0))
   f_1 <- c(mean(prob_death), mean(prob_vent1), mean(prob_nothing1))
 
@@ -236,7 +237,7 @@ if (args[1] == 'run') {
       if(parm$trt_effect[i] == 0){
         tx_eff <- 0
       }else{
-        tx_eff <- get_tx_eff(parm$n[i])
+        tx_eff <- get_tx_eff(parm$n[i], trt_effect = parm$trt_effect[i])
       }
       dat <- make_data_1(n = parm$n[i], tx_effect = tx_eff)
 
@@ -273,7 +274,7 @@ if (args[1] == 'run') {
       if(parm$trt_effect[i] == 0){
         tx_eff <- 0
       }else{
-        tx_eff <- get_tx_eff(parm$n[i])
+        tx_eff <- get_tx_eff(parm$n[i], trt_effect = parm$trt_effect[i])
       }
       dat <- make_data_3(n = parm$n[i], tx_effect = tx_eff)
 
