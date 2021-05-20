@@ -51,7 +51,6 @@ sim <- function(i) {
                       eff = eff,
                       seed = seed,
                       n = n))
-    return(data)
 }
 
 set.seed(6235)
